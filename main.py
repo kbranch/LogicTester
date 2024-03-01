@@ -12,6 +12,7 @@ import logic
 from worldSetup import WorldSetup, start_locations
 from LADXR.settings import *
 from locations.items import *
+from entranceInfo import ENTRANCE_INFO
 
 import newLogic
 
@@ -201,6 +202,20 @@ def visitLogic(log, inventory):
 
     return names
 
+def compareLogics(log, newLog, inventory):
+    names = visitLogic(log, inventory)
+    newNames = visitLogic(newLog, inventory)
+
+    if names != newNames:
+        diff = {}
+        diff['items'] = {}
+        for pair in inventory:
+            diff['items'][pair[0]] = pair[1]
+        diff['common'] = list(names.intersection(newNames))
+        diff['old'] = list(names.difference(newNames))
+        diff['new'] = list(newNames.difference(names))
+        print(f"Difference found:\n{json.dumps(diff)}")
+
 def testItems(items, log, newLog):
     totalCombos = 0
     start = datetime.datetime.now()
@@ -209,19 +224,7 @@ def testItems(items, log, newLog):
         combos = itertools.combinations(items, i)
 
         for combo in combos:
-            names = visitLogic(log, combo)
-            newNames = visitLogic(newLog, combo)
-
-            if names != newNames:
-                diff = {}
-                diff['items'] = {}
-                for pair in combo:
-                    diff['items'][pair[0]] = pair[1]
-                diff['common'] = list(names.intersection(newNames))
-                diff['old'] = list(names.difference(newNames))
-                diff['new'] = list(newNames.difference(names))
-                print(f"Difference found:\n{json.dumps(diff)}")
-            
+            compareLogics(log, newLog, combo)
             totalCombos += 1
     
     duration = datetime.datetime.now() - start
@@ -239,7 +242,7 @@ def testDungeon(dungeonNum, settings):
 
     testItems(items, log, newLog)
 
-def testOverworld(settings, entranceMap, items):
+def testOverworld(settings, entranceMap, items, fixedItems=False):
     worldSetup = WorldSetup()
     worldSetup.goal = "8"
 
@@ -254,7 +257,69 @@ def testOverworld(settings, entranceMap, items):
     log = logic.Logic(settings, world_setup=worldSetup)
     newLog = newLogic.Logic(settings, world_setup=worldSetup)
 
-    testItems(items, log, newLog)
+    if fixedItems:
+        compareLogics(log, newLog, items)
+    else:
+        testItems(items, log, newLog)
+
+def testDiscordScenario():
+    # Brute force entrance possibilities to check for a logic bug
+    settings = Settings()
+    pool = [f'{x}:inside' for x in ENTRANCE_INFO if ENTRANCE_INFO[x].type in ['single', 'water', 'trade', 'dungeon']]
+    mapped = ('d2', 'shop', 'trendy_shop', 'kennel')
+    items = (
+        (SWORD, 2),
+        (MAGIC_POWDER, 1),
+        (SHOVEL, 1),
+        (MAX_BOMBS_UPGRADE, 1),
+        (BLUE_TUNIC, 1),
+        (RED_TUNIC, 1),
+        (FLIPPERS, 1),
+        (HOOKSHOT, 1),
+        (BOWWOW, 1),
+        (SONG3, 1),
+        (GOLD_LEAF, 2),
+        (SEASHELL, 9),
+        (TRADING_ITEM_BANANAS, 1),
+        (TRADING_ITEM_STICK, 1),
+        (TRADING_ITEM_HONEYCOMB, 1),
+        (TRADING_ITEM_HIBISCUS, 1),
+        (TRADING_ITEM_BROOM, 1),
+        (TRADING_ITEM_NECKLACE, 1),
+        (KEY0, 3),
+        (KEY2, 1),
+        (KEY3, 4),
+        (KEY4, 3),
+        (KEY5, 1),
+        (KEY6, 1),
+        (KEY7, 1),
+        (KEY8, 2),
+    )
+
+    combo = 1
+    for chosen in itertools.combinations(pool, 4):
+        # for targets in itertools.permutations(mapped):
+        entranceMap = {}
+
+        for i in range(len(mapped)):
+            entranceMap[mapped[i]] = chosen[i]
+        
+        worldSetup = WorldSetup()
+        worldSetup.goal = "8"
+        
+        for outside, inside in entranceMap.items():
+            worldSetup.entrance_mapping[outside] = inside
+            worldSetup.entrance_mapping[inside] = outside
+
+        log = logic.Logic(settings, world_setup=worldSetup)
+        names = visitLogic(log, items)
+
+        if '0x0A6' in names and '0x28A' not in names:
+            pass
+        
+        print(f"Combo #{combo}")
+        
+        combo += 1
 
 def main():
     startTime = datetime.datetime.now()
@@ -293,10 +358,12 @@ def main():
 
             testOverworld(settings, entranceMap, randomStartItems)
 
-        # for difficulty in difficulties:
-        #     print(f"Testing dungeon {8} {difficulty} logic")
-        #     settings.logic = difficulty
-        #     testDungeon(8, settings)
+    # for difficulty in difficulties:
+    #     print(f"Testing dungeon {8} {difficulty} logic")
+    #     settings.logic = difficulty
+    #     testDungeon(8, settings)
+    
+    # testDiscordScenario()
     
     duration = datetime.datetime.now() - startTime
 
