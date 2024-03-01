@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 import datetime
 import itertools
 
@@ -151,6 +152,37 @@ dungeonItems = (
     )
 )
 
+overworldItems = (
+    (FEATHER, 1),
+    (HOOKSHOT, 1),
+    (SWORD, 1),
+    (ROOSTER, 1),
+    (POWER_BRACELET, 1),
+    (BOMB, 1),
+    (BOW, 1),
+    (PEGASUS_BOOTS, 1),
+    (MAGIC_POWDER, 1),
+    (FLIPPERS, 1),
+    (MAGIC_ROD, 1),
+    (BOOMERANG, 1),
+    (SHIELD, 1),
+    (RUPEES_500, 4),
+)
+
+randomStartItems = (
+    (FEATHER, 1),
+    (HOOKSHOT, 1),
+    (SWORD, 1),
+    (ROOSTER, 1),
+    (POWER_BRACELET, 1),
+    (BOMB, 1),
+    (PEGASUS_BOOTS, 1),
+    (MAGIC_POWDER, 1),
+    (FLIPPERS, 1),
+    (BOOMERANG, 1),
+    (SHIELD, 1),
+)
+
 def visitLogic(log, inventory):
     e = explorer.Explorer()
 
@@ -169,17 +201,9 @@ def visitLogic(log, inventory):
 
     return names
 
-def testDungeon(dungeonNum, settings):
-    worldSetup = WorldSetup()
-    worldSetup.goal = "8"
-    worldSetup.entrance_mapping['start_house:inside'] = f'd{dungeonNum}:inside'
-    worldSetup.entrance_mapping[f'd{dungeonNum}:inside'] = f'start_house:inside'
-    log = logic.Logic(settings, world_setup=worldSetup)
-    newLog = newLogic.Logic(settings, world_setup=worldSetup)
-
+def testItems(items, log, newLog):
     totalCombos = 0
     start = datetime.datetime.now()
-    items = dungeonItems[dungeonNum]
 
     for i in range(len(items) + 1):
         combos = itertools.combinations(items, i)
@@ -189,16 +213,51 @@ def testDungeon(dungeonNum, settings):
             newNames = visitLogic(newLog, combo)
 
             if names != newNames:
-                print(f"Difference found with {combo}:\nold: {names}\nnew: {newNames}")
+                diff = {}
+                diff['items'] = {}
+                for pair in combo:
+                    diff['items'][pair[0]] = pair[1]
+                diff['common'] = list(names.intersection(newNames))
+                diff['old'] = list(names.difference(newNames))
+                diff['new'] = list(newNames.difference(names))
+                print(f"Difference found:\n{json.dumps(diff)}")
             
             totalCombos += 1
     
     duration = datetime.datetime.now() - start
 
-    print(f"Tested {totalCombos} combinations, {duration / totalCombos} each")
+    # print(f"Tested {totalCombos} combinations, {duration / totalCombos} each")
+
+def testDungeon(dungeonNum, settings):
+    worldSetup = WorldSetup()
+    worldSetup.goal = "8"
+    worldSetup.entrance_mapping['start_house:inside'] = f'd{dungeonNum}:inside'
+    worldSetup.entrance_mapping[f'd{dungeonNum}:inside'] = f'start_house:inside'
+    log = logic.Logic(settings, world_setup=worldSetup)
+    newLog = newLogic.Logic(settings, world_setup=worldSetup)
+    items = dungeonItems[dungeonNum]
+
+    testItems(items, log, newLog)
+
+def testOverworld(settings, entranceMap, items):
+    worldSetup = WorldSetup()
+    worldSetup.goal = "8"
+
+    for i in range(9):
+        dungeon = f'd{i}'
+        if dungeon not in entranceMap:
+            worldSetup.entrance_mapping[dungeon] = 'start_house:inside'
+    
+    for entrance in entranceMap:
+        worldSetup.entrance_mapping[entrance] = entranceMap[entrance]
+
+    log = logic.Logic(settings, world_setup=worldSetup)
+    newLog = newLogic.Logic(settings, world_setup=worldSetup)
+
+    testItems(items, log, newLog)
 
 def main():
-    start = datetime.datetime.now()
+    startTime = datetime.datetime.now()
 
     difficulties = ('casual', '', 'hard', 'glitched', 'hell')
 
@@ -217,12 +276,29 @@ def main():
             settings.logic = difficulty
             testDungeon(i, settings)
 
-    # for difficulty in difficulties:
-    #     print(f"Testing dungeon {8} {difficulty} logic")
-    #     settings.logic = difficulty
-    #     testDungeon(8, settings)
+    for difficulty in difficulties:
+        print(f'Testing vanilla overworld "{difficulty}" logic')
+        testOverworld(settings, {}, overworldItems)
+
+        worldSetup = WorldSetup()
+        emptyEntrances = {}
+        for entrance in [x for x in worldSetup.entrance_mapping if ':inside' not in x]:
+            emptyEntrances[entrance] = 'start_house:inside'
+        
+        for start in [x for x in worldSetup.entrance_mapping if ':inside' not in x]:
+            entranceMap = emptyEntrances.copy()
+            entranceMap['start_house:inside'] = start
+
+            print(f'Testing start location {start} "{difficulty}" logic')
+
+            testOverworld(settings, entranceMap, randomStartItems)
+
+        # for difficulty in difficulties:
+        #     print(f"Testing dungeon {8} {difficulty} logic")
+        #     settings.logic = difficulty
+        #     testDungeon(8, settings)
     
-    duration = datetime.datetime.now() - start
+    duration = datetime.datetime.now() - startTime
 
     print(f"Duration: {duration}")
 
