@@ -6,15 +6,15 @@ import itertools
 
 sys.path.append(os.path.abspath('LADXR/'))
 
+from locations.items import *
 import explorer
 import itempool
 import logic
 from worldSetup import WorldSetup, start_locations
 from LADXR.settings import *
-from locations.items import *
 from entranceInfo import ENTRANCE_INFO
 
-import newLogic
+from newLogic.main import Logic as NewLogic
 
 dungeonItems = (
     ( # D0
@@ -150,6 +150,7 @@ dungeonItems = (
         (NIGHTMARE_KEY8, 1),
         (PEGASUS_BOOTS, 1),
         (MAGIC_POWDER, 1),
+        (FLIPPERS, 1),
     )
 )
 
@@ -184,6 +185,12 @@ randomStartItems = (
     (SHIELD, 1),
 )
 
+difficulties = ('casual', '', 'hard', 'glitched', 'hell')
+
+ignoredNames = {"0x14C", "0x150"}
+
+clean = True
+
 def visitLogic(log, inventory):
     e = explorer.Explorer()
 
@@ -203,6 +210,8 @@ def visitLogic(log, inventory):
     return names
 
 def compareLogics(log, newLog, inventory):
+    global clean
+
     names = visitLogic(log, inventory)
     newNames = visitLogic(newLog, inventory)
 
@@ -214,7 +223,13 @@ def compareLogics(log, newLog, inventory):
         diff['common'] = list(names.intersection(newNames))
         diff['old'] = list(names.difference(newNames))
         diff['new'] = list(newNames.difference(names))
-        print(f"Difference found:\n{json.dumps(diff)}")
+        diff['logic'] = log.settings.logic
+        if newNames.difference(names).difference(ignoredNames) or names.difference(newNames).difference(ignoredNames):
+            diffStr = json.dumps(diff)
+            print(f"Difference found:\n{diffStr}")
+            clean = False
+            with open('diffs.log', 'a') as oFile:
+                oFile.write(f'{diffStr}\n')
 
 def testItems(items, log, newLog):
     totalCombos = 0
@@ -236,9 +251,10 @@ def testDungeon(dungeonNum, settings):
     worldSetup.goal = "8"
     worldSetup.entrance_mapping['start_house:inside'] = f'd{dungeonNum}:inside'
     worldSetup.entrance_mapping[f'd{dungeonNum}:inside'] = f'start_house:inside'
-    log = logic.Logic(settings, world_setup=worldSetup)
-    newLog = newLogic.Logic(settings, world_setup=worldSetup)
+    log = logic.main.Logic(settings, world_setup=worldSetup)
+    newLog = NewLogic(settings, world_setup=worldSetup)
     items = dungeonItems[dungeonNum]
+    log.settings = settings
 
     testItems(items, log, newLog)
 
@@ -254,8 +270,10 @@ def testOverworld(settings, entranceMap, items, fixedItems=False):
     for entrance in entranceMap:
         worldSetup.entrance_mapping[entrance] = entranceMap[entrance]
 
-    log = logic.Logic(settings, world_setup=worldSetup)
-    newLog = newLogic.Logic(settings, world_setup=worldSetup)
+    log = logic.main.Logic(settings, world_setup=worldSetup)
+    newLog = NewLogic(settings, world_setup=worldSetup)
+
+    log.settings = settings
 
     if fixedItems:
         compareLogics(log, newLog, items)
@@ -317,32 +335,34 @@ def testDiscordScenario():
         if '0x0A6' in names and '0x28A' not in names:
             pass
         
-        print(f"Combo #{combo}")
+        # print(f"Combo #{combo}")
         
         combo += 1
 
-def main():
-    startTime = datetime.datetime.now()
-
-    difficulties = ('casual', '', 'hard', 'glitched', 'hell')
-
+def fullDungeonTests():
     settings = Settings()
 
     for i in range(len(dungeonItems)):
         for difficulty in difficulties:
-            print(f"Testing dungeon {i} {difficulty} logic")
+            # print(f"Testing dungeon {i} {difficulty} logic")
             settings.logic = difficulty
             testDungeon(i, settings)
 
     settings.owlstatues = "both"
     for i in range(len(dungeonItems)):
         for difficulty in difficulties:
-            print(f"Testing dungeon {i} {difficulty} logic with owls")
+            # print(f"Testing dungeon {i} {difficulty} logic with owls")
             settings.logic = difficulty
             testDungeon(i, settings)
 
+
+def fullOverworldTests():
+    settings = Settings()
+
     for difficulty in difficulties:
-        print(f'Testing vanilla overworld "{difficulty}" logic')
+        # print(f'Testing vanilla overworld "{difficulty}" logic')
+        settings.logic = difficulty
+
         testOverworld(settings, {}, overworldItems)
 
         worldSetup = WorldSetup()
@@ -354,19 +374,29 @@ def main():
             entranceMap = emptyEntrances.copy()
             entranceMap['start_house:inside'] = start
 
-            print(f'Testing start location {start} "{difficulty}" logic')
+            # print(f'Testing start location {start} "{difficulty}" logic')
 
             testOverworld(settings, entranceMap, randomStartItems)
 
+def main():
+    # startTime = datetime.datetime.now()
+
+    fullDungeonTests()
+    fullOverworldTests()
+
+    # settings = Settings()
     # for difficulty in difficulties:
-    #     print(f"Testing dungeon {8} {difficulty} logic")
+    #     print(f"Testing dungeon {3} {difficulty} logic")
     #     settings.logic = difficulty
-    #     testDungeon(8, settings)
+    #     testDungeon(3, settings)
     
     # testDiscordScenario()
     
-    duration = datetime.datetime.now() - startTime
+    # duration = datetime.datetime.now() - startTime
 
-    print(f"Duration: {duration}")
+    # print(f"Duration: {duration}")
+
+    if clean:
+        print("No logic differences found!")
 
 main()
