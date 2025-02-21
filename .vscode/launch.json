@@ -10,6 +10,14 @@
             "request": "launch",
             "program": "main.py",
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Python Debugger: tester with arguments",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "main.py",
+            "args": ["--dungeons", "0", "1", "--no-overworld"],
+            "console": "integratedTerminal"
         }
     ]
 }
