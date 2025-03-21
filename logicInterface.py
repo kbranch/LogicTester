@@ -193,7 +193,7 @@ randomStartItems = (
     (SHIELD, 1),
 )
 
-ignoredNames = {"0x14C", "0x150"}
+ignoredNames = {"0x14C", "0x150", "MS2_KILL", "MS1_KILL", "MS3_KILL"}
 difficulties = ('casual', '', 'hard', 'glitched', 'hell')
 
 def visitLogic(log, inventory):
@@ -229,6 +229,7 @@ def compareLogics(log, newLog, inventory):
         diff['old'] = list(names.difference(newNames))
         diff['new'] = list(newNames.difference(names))
         diff['logic'] = log.settings.logic
+        diff['owls'] = log.settings.owlstatues
         if newNames.difference(names).difference(ignoredNames) or names.difference(newNames).difference(ignoredNames):
             diffStr = json.dumps(diff)
             print(f"Difference found:\n{diffStr}")
@@ -246,7 +247,15 @@ def testDungeon(dungeonNum, settings):
     items = dungeonItems[dungeonNum]
     log.settings = settings
 
+    addForcedItems(log)
+    addForcedItems(newLog)
+
     testItems(items, log, newLog)
+
+def addForcedItems(logic):
+    for loc in logic.location_list:
+        for ii in [x for x in loc.items if len(x.OPTIONS) == 1]:
+            ii.item = ii.OPTIONS[0]
 
 def testOverworldSettings(settings, entranceMap, items, fixedItems=False):
     worldSetup = WorldSetup()
@@ -264,6 +273,9 @@ def testOverworldSettings(settings, entranceMap, items, fixedItems=False):
     newLog = NewLogic(settings, world_setup=worldSetup)
 
     log.settings = settings
+
+    addForcedItems(log)
+    addForcedItems(newLog)
 
     if fixedItems:
         compareLogics(log, newLog, items)
