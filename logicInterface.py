@@ -193,8 +193,9 @@ randomStartItems = (
     (SHIELD, 1),
 )
 
-ignoredNames = {"0x14C", "0x150", "MS2_KILL", "MS1_KILL", "MS3_KILL"}
+ignoredNames = {"None"}
 difficulties = ('casual', '', 'hard', 'glitched', 'hell')
+clean = True
 
 def visitLogic(log, inventory):
     e = explorer.Explorer()

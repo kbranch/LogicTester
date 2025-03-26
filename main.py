@@ -2,8 +2,7 @@ import os
 import argparse
 
 import config
-
-clean = True
+import logicInterface
 
 def dirPath(string):
     if os.path.isdir(string):
@@ -23,7 +22,6 @@ def main():
     config.referenceLadxrPath = args.referenceLadxrPath or config.referenceLadxrPath 
     config.newLogicPath = args.newLogicPath or config.newLogicPath 
 
-    from logicInterface import testDungeons, testOverworld
 
     if args.dungeons:
         args.dungeons = [int(x[0]) for x in args.dungeons]
@@ -31,15 +29,15 @@ def main():
     # startTime = datetime.datetime.now()
 
     if args.testDungeons:
-        testDungeons(args.dungeons or config.dungeons)
+        logicInterface.testDungeons(args.dungeons or config.dungeons)
     if args.testOverworld:
-        testOverworld()
+        logicInterface.testOverworld()
     
     # duration = datetime.datetime.now() - startTime
 
     # print(f"Duration: {duration}")
 
-    if clean:
+    if logicInterface.clean:
         print("No logic differences found!")
 
 main()

@@ -16,7 +16,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "main.py",
-            "args": ["--dungeons", "0", "1", "--no-overworld"],
+            "args": ["--no-overworld"],
             "console": "integratedTerminal"
         }
     ]
