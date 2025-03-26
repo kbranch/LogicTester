@@ -1,8 +1,10 @@
 import os
 import sys
-import json
+import uuid
 import datetime
 import itertools
+from multiprocessing import Process
+
 import config
 
 sys.path.append(config.referenceLadxrPath)
@@ -70,13 +72,22 @@ dungeonItems = (
         (POWER_BRACELET, 1),
         (KEY3, 8),
         (STONE_BEAK3, 1),
+        (KEY3, 6),
         (KEY3, 4),
         (BOMB, 1),
         (FEATHER, 1),
         (NIGHTMARE_KEY3, 1),
         (SWORD, 1),
+        (SWORD, 2),
+        (BOW, 2),
+        (MEDICINE, 2),
         (MAGIC_POWDER, 1),
+        (MAGIC_ROD, 1),
+        (HOOKSHOT, 1),
+        (SHIELD, 1),
         (BOOMERANG, 1),
+        # (TOADSTOOL, 1),
+        # (SHOVEL, 1),
     ),
     ( # D4
         (SHIELD, 1),
@@ -232,13 +243,15 @@ def compareLogics(log, newLog, inventory):
         diff['logic'] = log.settings.logic
         diff['owls'] = log.settings.owlstatues
         if newNames.difference(names).difference(ignoredNames) or names.difference(newNames).difference(ignoredNames):
-            print(f"Difference found:\n{json.dumps(diff)}")
+            # print(f"Difference found:\n{json.dumps(diff)}")
             clean = False
             if id not in diffs:
                 diffs[id] = []
             diffs[id].append(diff)
 
-def testDungeon(dungeonNum, settings):
+def testDungeon(dungeonNum, settings, sharedDiffs):
+    global diffs
+
     worldSetup = WorldSetup()
     worldSetup.goal = "8"
     worldSetup.entrance_mapping['start_house:inside'] = f'd{dungeonNum}:inside'
@@ -252,6 +265,8 @@ def testDungeon(dungeonNum, settings):
     addForcedItems(newLog)
 
     testItems(items, log, newLog)
+
+    sharedDiffs[uuid.uuid4().hex] = diffs
 
 def addForcedItems(logic):
     for loc in logic.location_list:
@@ -357,40 +372,49 @@ def testDiscordScenario():
         
         combo += 1
 
-def testDungeons(dungeons=range(9)):
+def testDungeons(sharedDiffs, dungeons=range(9)):
+    processes = []
     settings = Settings()
 
     for i in dungeons:
         for difficulty in difficulties:
-            # print(f"Testing dungeon {i} {difficulty} logic")
             settings.logic = difficulty
-            testDungeon(i, settings)
+            process = Process(target=testDungeon, args=(i, settings, sharedDiffs))
+            process.start()
+            processes.append(process)
 
-    settings.owlstatues = "both"
-    for i in dungeons:
-        for difficulty in difficulties:
-            # print(f"Testing dungeon {i} {difficulty} logic with owls")
-            settings.logic = difficulty
-            testDungeon(i, settings)
+            settings.owlstatues = "both"
+            process = Process(target=testDungeon, args=(i, settings, sharedDiffs))
+            process.start()
+            processes.append(process)
+    
+    return processes
 
-def testOverworld():
+def testOverworldDifficulty(difficulty, sharedDiffs):
     settings = Settings()
+    settings.logic = difficulty
+
+    testOverworldSettings(settings, {}, overworldItems)
+
+    worldSetup = WorldSetup()
+    emptyEntrances = {}
+    for entrance in [x for x in worldSetup.entrance_mapping if ':inside' not in x]:
+        emptyEntrances[entrance] = 'start_house:inside'
+    
+    for start in [x for x in worldSetup.entrance_mapping if ':inside' not in x]:
+        entranceMap = emptyEntrances.copy()
+        entranceMap['start_house:inside'] = start
+
+        testOverworldSettings(settings, entranceMap, randomStartItems)
+
+    sharedDiffs[uuid.uuid4().hex] = diffs
+
+def testOverworld(sharedDiffs):
+    processes = []
 
     for difficulty in difficulties:
-        # print(f'Testing vanilla overworld "{difficulty}" logic')
-        settings.logic = difficulty
-
-        testOverworldSettings(settings, {}, overworldItems)
-
-        worldSetup = WorldSetup()
-        emptyEntrances = {}
-        for entrance in [x for x in worldSetup.entrance_mapping if ':inside' not in x]:
-            emptyEntrances[entrance] = 'start_house:inside'
-        
-        for start in [x for x in worldSetup.entrance_mapping if ':inside' not in x]:
-            entranceMap = emptyEntrances.copy()
-            entranceMap['start_house:inside'] = start
-
-            # print(f'Testing start location {start} "{difficulty}" logic')
-
-            testOverworldSettings(settings, entranceMap, randomStartItems)
+        process = Process(target=testOverworldDifficulty, args=(difficulty, sharedDiffs))
+        process.start()
+        processes.append(process)
+    
+    return processes
