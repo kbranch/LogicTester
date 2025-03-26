@@ -196,6 +196,7 @@ randomStartItems = (
 ignoredNames = {"None"}
 difficulties = ('casual', '', 'hard', 'glitched', 'hell')
 clean = True
+diffs = {}
 
 def visitLogic(log, inventory):
     e = explorer.Explorer()
@@ -216,7 +217,7 @@ def visitLogic(log, inventory):
     return names
 
 def compareLogics(log, newLog, inventory):
-    global clean
+    global clean, diffs
 
     names = visitLogic(log, inventory)
     newNames = visitLogic(newLog, inventory)
@@ -226,17 +227,16 @@ def compareLogics(log, newLog, inventory):
         diff['items'] = {}
         for pair in inventory:
             diff['items'][pair[0]] = pair[1]
-        diff['common'] = list(names.intersection(newNames))
-        diff['old'] = list(names.difference(newNames))
-        diff['new'] = list(newNames.difference(names))
+        diff['common'] = sorted(list(names.intersection(newNames)))
+        id = f'Old: {sorted(list(names.difference(newNames)))}, New: {sorted(list(newNames.difference(names)))}'
         diff['logic'] = log.settings.logic
         diff['owls'] = log.settings.owlstatues
         if newNames.difference(names).difference(ignoredNames) or names.difference(newNames).difference(ignoredNames):
-            diffStr = json.dumps(diff)
-            print(f"Difference found:\n{diffStr}")
+            print(f"Difference found:\n{json.dumps(diff)}")
             clean = False
-            with open('diffs.log', 'a') as oFile:
-                oFile.write(f'{diffStr}\n')
+            if id not in diffs:
+                diffs[id] = []
+            diffs[id].append(diff)
 
 def testDungeon(dungeonNum, settings):
     worldSetup = WorldSetup()

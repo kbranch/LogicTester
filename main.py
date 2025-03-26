@@ -1,4 +1,5 @@
 import os
+import json
 import argparse
 
 import config
@@ -36,6 +37,8 @@ def main():
     # duration = datetime.datetime.now() - startTime
 
     # print(f"Duration: {duration}")
+    with open('diffs.log', 'w') as oFile:
+        oFile.write(f'{json.dumps(logicInterface.diffs, indent=3)}\n')
 
     if logicInterface.clean:
         print("No logic differences found!")
