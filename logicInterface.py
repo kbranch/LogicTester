@@ -1,28 +1,14 @@
-import os
-import sys
 import uuid
 import datetime
 import itertools
 from multiprocessing import Process
 
-import config
-
-sys.path.append(config.referenceLadxrPath)
-
 from locations.items import *
 import explorer
 import logic
-from worldSetup import WorldSetup, start_locations
+from worldSetup import WorldSetup
 from settings import *
 from entranceInfo import ENTRANCE_INFO
-
-try:
-    os.unlink("newLogic")
-except:
-    pass
-
-os.symlink(config.newLogicPath, 'newLogic', target_is_directory=True)
-sys.path.append(config.newLogicPath)
 
 from newLogic.main import Logic as NewLogic
 
@@ -249,8 +235,12 @@ def compareLogics(log, newLog, inventory):
                 diffs[id] = []
             diffs[id].append(diff)
 
-def testDungeon(dungeonNum, settings, sharedDiffs):
+def testDungeon(dungeonNum, difficulty, owls, sharedDiffs):
     global diffs
+
+    settings = Settings()
+    settings.logic = difficulty
+    settings.owlstatues = owls
 
     worldSetup = WorldSetup()
     worldSetup.goal = "8"
@@ -374,17 +364,14 @@ def testDiscordScenario():
 
 def testDungeons(sharedDiffs, dungeons=range(9)):
     processes = []
-    settings = Settings()
 
     for i in dungeons:
         for difficulty in difficulties:
-            settings.logic = difficulty
-            process = Process(target=testDungeon, args=(i, settings, sharedDiffs))
+            process = Process(target=testDungeon, args=(i, difficulty, "", sharedDiffs))
             process.start()
             processes.append(process)
 
-            settings.owlstatues = "both"
-            process = Process(target=testDungeon, args=(i, settings, sharedDiffs))
+            process = Process(target=testDungeon, args=(i, difficulty, "both", sharedDiffs))
             process.start()
             processes.append(process)
     

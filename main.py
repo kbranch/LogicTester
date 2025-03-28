@@ -1,11 +1,11 @@
 import os
+import sys
 import json
 import argparse
 import datetime
 from multiprocessing import Manager
 
 import config
-import logicInterface
 
 def dirPath(string):
     if os.path.isdir(string):
@@ -24,6 +24,17 @@ def main():
 
     config.referenceLadxrPath = args.referenceLadxrPath or config.referenceLadxrPath 
     config.newLogicPath = args.newLogicPath or config.newLogicPath 
+
+    try:
+        os.unlink("newLogic")
+    except:
+        pass
+
+    os.symlink(config.newLogicPath, 'newLogic', target_is_directory=True)
+    sys.path.append(config.newLogicPath)
+    sys.path.append(config.referenceLadxrPath)
+
+    import logicInterface
 
     if args.dungeons:
         args.dungeons = [int(x[0]) for x in args.dungeons]
@@ -61,4 +72,5 @@ def main():
     else:
         print("Differences found, see diffs.log for details")
 
-main()
+if __name__ == '__main__':
+    main()
