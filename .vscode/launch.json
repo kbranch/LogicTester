@@ -18,6 +18,14 @@
             "program": "main.py",
             "args": ["--no-overworld"],
             "console": "integratedTerminal"
-        }
+        },
+        {
+            "name": "Python Debugger: performance test",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "main.py",
+            "args": ["--performance-only", "--time-per-dungeon", "60"],
+            "console": "integratedTerminal"
+        },
     ]
 }

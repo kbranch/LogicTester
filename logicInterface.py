@@ -195,7 +195,7 @@ difficulties = ('casual', '', 'hard', 'glitched', 'hell')
 clean = True
 diffs = {}
 
-def visitLogic(log, inventory):
+def visitLogic(log, inventory, includeNames=True):
     e = explorer.Explorer()
 
     for item in inventory:
@@ -204,6 +204,9 @@ def visitLogic(log, inventory):
 
     e.visit(log.start)
     locations = e.getAccessableLocations()
+
+    if not includeNames:
+        return
 
     names = set()
 
@@ -361,6 +364,34 @@ def testDiscordScenario():
         # print(f"Combo #{combo}")
         
         combo += 1
+
+def perfTest(dungeon, difficulty, timePerDungeon=60):
+    settings = Settings()
+    settings.logic = difficulty
+
+    worldSetup = WorldSetup()
+    worldSetup.goal = "8"
+    worldSetup.entrance_mapping['start_house:inside'] = f'd{dungeon}:inside'
+    worldSetup.entrance_mapping[f'd{dungeon}:inside'] = f'start_house:inside'
+    log = logic.main.Logic(settings, world_setup=worldSetup)
+    items = [x for x in dungeonItems[dungeon] if not x[0].startswith('STONE_BEAK')]
+    log.settings = settings
+
+    iterations = 0
+    start = datetime.datetime.now()
+
+    while (datetime.datetime.now() - start).total_seconds() < timePerDungeon:
+        for i in range(len(items) + 1):
+            combos = itertools.combinations(items, i)
+
+            for combo in combos:
+                visitLogic(log, combo, False)
+        
+        iterations += 1
+    
+    duration = datetime.datetime.now() - start
+
+    print(f"Tested D{dungeon}, '{difficulty}' logic {iterations} times in {duration}, {duration.total_seconds() / iterations * 1000:.3f}ms each")
 
 def testDungeons(sharedDiffs, dungeons=range(9)):
     processes = []

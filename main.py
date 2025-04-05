@@ -20,6 +20,8 @@ def main():
     parser.add_argument('--no-overworld', dest='testOverworld', action='store_false', help='Don\'t test the overworld')
     parser.add_argument('--reference-ladxr-path', dest='referenceLadxrPath', action='store', type=dirPath, help='Path to the main LADXR folder for the reference logic')
     parser.add_argument('--new-logic-path', dest='newLogicPath', action='store', type=dirPath, help='Path to the "logic" folder that should be compared against the reference')
+    parser.add_argument('--performance-only', dest='perfTest', action='store_true', help='Only run the performance test. Tests the reference version, not the new one.')
+    parser.add_argument('--time-per-dungeon', dest='timePerDungeon', type=int, default=60, help='Target time per dungeon in seconds for the performance test. Default is 60 seconds.')
     args = parser.parse_args()
 
     config.referenceLadxrPath = args.referenceLadxrPath or config.referenceLadxrPath 
@@ -38,8 +40,20 @@ def main():
 
     if args.dungeons:
         args.dungeons = [int(x[0]) for x in args.dungeons]
-
+    
+    dungeons = args.dungeons or config.dungeons
+    
     startTime = datetime.datetime.now()
+
+    if args.perfTest:
+        print(f"Starting performance tests")
+
+        for dungeon in dungeons:
+            logicInterface.perfTest(dungeon, 'hell', args.timePerDungeon)
+        
+        print(f"All performance tests done in {datetime.datetime.now() - startTime}")
+
+        return
 
     processes = []
     diffs = {}
@@ -48,7 +62,7 @@ def main():
         sharedDiffs = manager.dict()
 
         if args.testDungeons:
-            processes.extend(logicInterface.testDungeons(sharedDiffs, args.dungeons or config.dungeons))
+            processes.extend(logicInterface.testDungeons(sharedDiffs, dungeons))
         if args.testOverworld:
             processes.extend(logicInterface.testOverworld(sharedDiffs))
     
